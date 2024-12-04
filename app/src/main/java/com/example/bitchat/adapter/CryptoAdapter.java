@@ -1,4 +1,4 @@
-package com.example.bitchat;
+package com.example.bitchat.adapter;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -7,6 +7,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.TextView;
+
+import com.example.bitchat.R;
 
 import java.util.ArrayList;
 import java.util.HashMap;
