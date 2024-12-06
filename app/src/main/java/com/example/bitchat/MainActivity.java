@@ -1,9 +1,11 @@
 package com.example.bitchat;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -47,6 +49,17 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         initViews();
+
+        // 로그인 상태에 따라 UI 업데이트
+        if (isLoggedIn()) {
+            findViewById(R.id.auth_links).setVisibility(View.GONE);
+            findViewById(R.id.user_info).setVisibility(View.VISIBLE);
+            String username = getSharedPreferences("Auth", MODE_PRIVATE).getString("username", "");
+            usernameTextView.setText(username);
+        } else {
+            findViewById(R.id.auth_links).setVisibility(View.VISIBLE);
+            findViewById(R.id.user_info).setVisibility(View.GONE);
+        }
     }
 
     private void initViews() {
@@ -71,6 +84,26 @@ public class MainActivity extends AppCompatActivity {
         checkLoginStatus();
         adapter = new CryptoAdapter(this, new ArrayList<>());
         cryptoListView.setAdapter(adapter);
+
+        // 암호화폐 아이템 클릭 리스너 설정
+        adapter.setOnItemClickListener(cryptoId -> {
+            SharedPreferences prefs = getSharedPreferences("Auth", MODE_PRIVATE);
+            boolean isLoggedIn = prefs.getBoolean("isLoggedIn", false);
+
+            // 로그인 상태 디버깅을 위한 로그 출력
+            Log.d("LoginStatus", "IsLoggedIn: " + isLoggedIn);
+
+            if (!isLoggedIn) {
+                Toast.makeText(this, "채팅에 참여하려면 로그인이 필요합니다.", Toast.LENGTH_SHORT).show();
+                startActivity(new Intent(MainActivity.this, LoginActivity.class));
+                return;
+            }
+
+            // 채팅방으로 이동
+            Intent intent = new Intent(MainActivity.this, ChatActivity.class);
+            intent.putExtra("cryptoId", cryptoId);
+            startActivity(intent);
+        });
 
         // Fetch crypto data
         startFetchingCryptoData();
@@ -131,7 +164,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkLoginStatus() {
-        String token = getSharedPreferences("BitChatPrefs", MODE_PRIVATE).getString("accessToken", null);
+        SharedPreferences prefs = getSharedPreferences("Auth", MODE_PRIVATE);
+        String token = prefs.getString("token", null);
 
         if (token != null) {
             String url = "http://54.206.20.147:8080/api/auth/user";
@@ -182,21 +216,19 @@ public class MainActivity extends AppCompatActivity {
                             map.put("name", obj.getString("koreanName"));
                             map.put("price", obj.getString("tradePrice") + " KRW");
                             map.put("color", obj.getString("priceColor"));
+                            map.put("market", obj.getString("market"));
                             cryptoData.add(map);
                         }
                         
-                        // 원본 데이터 저장
                         originalData.clear();
                         originalData.addAll(cryptoData);
                         
-                        // 검색어가 있는 경우 필터링된 결과 표시
                         String currentSearch = searchEditText.getText().toString();
                         if (!currentSearch.isEmpty()) {
                             filterCryptoList(currentSearch);
                         } else {
                             adapter.updateData(cryptoData);
                         }
-
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -225,13 +257,29 @@ public class MainActivity extends AppCompatActivity {
 
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, url, null,
                 response -> {
-                    getSharedPreferences("BitChatPrefs", MODE_PRIVATE).edit().remove("accessToken").apply();
-                    Toast.makeText(this, "Logged out", Toast.LENGTH_SHORT).show();
+                    // Auth SharedPreferences 사용
+                    SharedPreferences prefs = getSharedPreferences("Auth", MODE_PRIVATE);
+                    prefs.edit()
+                        .remove("username")
+                        .remove("token")
+                        .remove("isLoggedIn")
+                        .apply();
+                    
+                    Toast.makeText(this, "로그아웃되었습니다.", Toast.LENGTH_SHORT).show();
                     findViewById(R.id.auth_links).setVisibility(View.VISIBLE);
                     findViewById(R.id.user_info).setVisibility(View.GONE);
                 },
-                error -> Toast.makeText(this, "Failed to logout", Toast.LENGTH_SHORT).show());
+                error -> Toast.makeText(this, "로그아웃 실패", Toast.LENGTH_SHORT).show());
 
         requestQueue.add(jsonObjectRequest);
+    }
+
+    private boolean isLoggedIn() {
+        SharedPreferences prefs = getSharedPreferences("Auth", MODE_PRIVATE);
+        String token = prefs.getString("token", null);
+        String username = prefs.getString("username", null);
+        boolean isLoggedIn = prefs.getBoolean("isLoggedIn", false);
+        
+        return token != null && username != null && isLoggedIn;
     }
 }
