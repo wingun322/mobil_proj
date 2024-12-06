@@ -1,5 +1,6 @@
 package com.example.bitchat;
 
+import android.app.ProgressDialog;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
@@ -9,6 +10,7 @@ import android.text.TextUtils;
 import android.widget.Toast;
 import android.util.Patterns;
 import androidx.appcompat.app.AppCompatActivity;
+import android.content.SharedPreferences;
 
 import com.example.bitchat.callback.AuthCallback;
 import com.example.bitchat.model.LoginRequest;
@@ -51,8 +53,22 @@ public class LoginActivity extends AppCompatActivity {
         String password = passwordInput.getText().toString().trim();
 
         if (validateInput(email, password)) {
-            loginButton.setEnabled(false); // 버튼 비활성화
-            login(email, password);
+            loginButton.setEnabled(false);
+            
+            ProgressDialog progressDialog = new ProgressDialog(this);
+            progressDialog.setMessage("로그인 중...");
+            progressDialog.show();
+
+            new Thread(() -> {
+                try {
+                    login(email, password);
+                } finally {
+                    runOnUiThread(() -> {
+                        progressDialog.dismiss();
+                        loginButton.setEnabled(true);
+                    });
+                }
+            }).start();
         }
     }
 
@@ -77,6 +93,14 @@ public class LoginActivity extends AppCompatActivity {
         authRepository.login(loginRequest, new AuthCallback<LoginResponse>() {
             @Override
             public void onSuccess(LoginResponse response) {
+                // SharedPreferences에 로그인 정보 저장
+                SharedPreferences prefs = getSharedPreferences("Auth", MODE_PRIVATE);
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putString("username", response.getUsername());
+                editor.putString("token", response.getAccessToken());
+                editor.putBoolean("isLoggedIn", true);
+                editor.apply();
+
                 runOnUiThread(() -> {
                     Toast.makeText(LoginActivity.this, "로그인 성공", Toast.LENGTH_SHORT).show();
                     Intent intent = new Intent(LoginActivity.this, MainActivity.class);

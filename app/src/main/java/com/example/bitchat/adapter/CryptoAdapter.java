@@ -12,34 +12,44 @@ import com.example.bitchat.R;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class CryptoAdapter extends BaseAdapter {
     private Context context;
-    private ArrayList<HashMap<String, String>> cryptoData;
+    private List<HashMap<String, String>> cryptoList;
+    private OnItemClickListener onItemClickListener;
 
-    public CryptoAdapter(Context context, ArrayList<HashMap<String, String>> cryptoData) {
+    private static class ViewHolder {
+        TextView cryptoName;
+        TextView cryptoPrice;
+    }
+
+    public interface OnItemClickListener {
+        void onItemClick(String cryptoId);
+    }
+
+    public void setOnItemClickListener(OnItemClickListener listener) {
+        this.onItemClickListener = listener;
+    }
+
+    public CryptoAdapter(Context context, List<HashMap<String, String>> cryptoList) {
         this.context = context;
-        this.cryptoData = cryptoData;
+        this.cryptoList = cryptoList;
     }
 
-    public void updateData(ArrayList<HashMap<String, String>> newData) {
-        cryptoData.clear();
-        cryptoData.addAll(newData);
-        notifyDataSetChanged(); // 데이터 갱신 알림
-    }
-
-    public ArrayList<HashMap<String, String>> getData() {
-        return cryptoData; // 어댑터의 데이터 반환
+    public void updateData(List<HashMap<String, String>> newData) {
+        this.cryptoList = newData;
+        notifyDataSetChanged();
     }
 
     @Override
     public int getCount() {
-        return cryptoData.size();
+        return cryptoList.size();
     }
 
     @Override
-    public Object getItem(int position) {
-        return cryptoData.get(position);
+    public HashMap<String, String> getItem(int position) {
+        return cryptoList.get(position);
     }
 
     @Override
@@ -49,32 +59,40 @@ public class CryptoAdapter extends BaseAdapter {
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
+        ViewHolder holder;
+        HashMap<String, String> crypto = getItem(position);
+
         if (convertView == null) {
-            LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            convertView = inflater.inflate(R.layout.crypto_item, parent, false);
+            convertView = LayoutInflater.from(context).inflate(R.layout.item_crypto, parent, false);
+            holder = new ViewHolder();
+            holder.cryptoName = convertView.findViewById(R.id.crypto_name);
+            holder.cryptoPrice = convertView.findViewById(R.id.crypto_price);
+            convertView.setTag(holder);
+        } else {
+            holder = (ViewHolder) convertView.getTag();
         }
 
-        TextView cryptoName = convertView.findViewById(R.id.crypto_name);
-        TextView cryptoPrice = convertView.findViewById(R.id.crypto_price);
-
-        // 데이터 가져오기
-        HashMap<String, String> crypto = cryptoData.get(position);
         String name = crypto.get("name");
         String price = crypto.get("price");
         String priceColor = crypto.get("color");
+        String cryptoId = crypto.get("market");
 
-        // 텍스트 설정
-        cryptoName.setText(name);
-        cryptoPrice.setText(price);
+        holder.cryptoName.setText(name);
+        holder.cryptoPrice.setText(price);
 
-        // 가격 텍스트 색상 변경
         if ("red".equals(priceColor)) {
-            cryptoPrice.setTextColor(Color.RED);
+            holder.cryptoPrice.setTextColor(Color.RED);
         } else if ("blue".equals(priceColor)) {
-            cryptoPrice.setTextColor(Color.BLUE);
-        } else if ("black".equals(priceColor)) {
-            cryptoPrice.setTextColor(Color.BLACK);
+            holder.cryptoPrice.setTextColor(Color.BLUE);
+        } else {
+            holder.cryptoPrice.setTextColor(Color.BLACK);
         }
+
+        convertView.setOnClickListener(v -> {
+            if (onItemClickListener != null) {
+                onItemClickListener.onItemClick(cryptoId);
+            }
+        });
 
         return convertView;
     }

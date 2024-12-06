@@ -20,7 +20,7 @@ import com.google.gson.Gson;
 
 public class AuthRepository {
     private static final String BASE_URL = "http://54.206.20.147:8080";
-    private static final String PREF_NAME = "BitChatPrefs";
+    private static final String PREF_NAME = "Auth";
     private final Context context;
     private final OkHttpClient client;
     private final Gson gson;
