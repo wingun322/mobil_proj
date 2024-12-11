@@ -24,6 +24,8 @@ public class CryptoAdapter extends BaseAdapter {
     private static class ViewHolder {
         TextView cryptoName;
         TextView cryptoPrice;
+        TextView cryptoChangePrice;
+        TextView cryptoChangeRate;
         Button favoriteButton;
     }
 
@@ -70,6 +72,8 @@ public class CryptoAdapter extends BaseAdapter {
             holder = new ViewHolder();
             holder.cryptoName = convertView.findViewById(R.id.crypto_name);
             holder.cryptoPrice = convertView.findViewById(R.id.crypto_price);
+            holder.cryptoChangePrice = convertView.findViewById(R.id.crypto_change_price);
+            holder.cryptoChangeRate = convertView.findViewById(R.id.crypto_change_rate);
             holder.favoriteButton = convertView.findViewById(R.id.favorite_button);
             convertView.setTag(holder);
         } else {
@@ -80,18 +84,25 @@ public class CryptoAdapter extends BaseAdapter {
         String price = crypto.get("price");
         String priceColor = crypto.get("color");
         String market = crypto.get("market");
+        String changePrice = crypto.get("changePrice");
+        String changeRate = crypto.get("changeRate");
         boolean isFavorite = ((MainActivity)context).isFavorite(market);
         
         holder.cryptoName.setText(name);
         holder.cryptoPrice.setText(price);
+        holder.cryptoChangePrice.setText(changePrice);
+        holder.cryptoChangeRate.setText(changeRate);
 
+        int color = Color.BLACK;
         if ("red".equals(priceColor)) {
-            holder.cryptoPrice.setTextColor(Color.RED);
+            color = Color.RED;
         } else if ("blue".equals(priceColor)) {
-            holder.cryptoPrice.setTextColor(Color.BLUE);
-        } else {
-            holder.cryptoPrice.setTextColor(Color.BLACK);
+            color = Color.BLUE;
         }
+
+        holder.cryptoPrice.setTextColor(color);
+        holder.cryptoChangePrice.setTextColor(color);
+        holder.cryptoChangeRate.setTextColor(color);
 
         holder.favoriteButton.setVisibility(View.VISIBLE);
         holder.favoriteButton.setText(isFavorite ? "★" : "☆");

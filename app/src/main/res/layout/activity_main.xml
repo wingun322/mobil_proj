@@ -74,11 +74,52 @@
             android:textSize="18sp"
             android:textStyle="bold"/>
 
+        <LinearLayout
+            android:id="@+id/sort_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/crypto_section_title"
+            android:orientation="horizontal"
+            android:padding="8dp">
+
+            <Button
+                android:id="@+id/sort_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="이름순"
+                android:textSize="12sp"
+                style="@style/Widget.MaterialComponents.Button.TextButton"/>
+
+            <Button
+                android:id="@+id/sort_price"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="가격순"
+                android:textSize="12sp"
+                style="@style/Widget.MaterialComponents.Button.TextButton"/>
+
+            <Button
+                android:id="@+id/sort_change_rate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="변동률순"
+                android:textSize="12sp"
+                style="@style/Widget.MaterialComponents.Button.TextButton"/>
+
+            <Button
+                android:id="@+id/sort_change_price"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="변동액순"
+                android:textSize="12sp"
+                style="@style/Widget.MaterialComponents.Button.TextButton"/>
+        </LinearLayout>
+
         <ListView
             android:id="@+id/crypto_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_below="@id/crypto_section_title"
+            android:layout_below="@id/sort_container"
             android:layout_marginTop="8dp"
             android:divider="@android:color/darker_gray"
             android:dividerHeight="0.5dp"/>
