@@ -6,9 +6,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.Button;
 import android.widget.TextView;
 
 import com.example.bitchat.R;
+import com.example.bitchat.MainActivity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,6 +24,7 @@ public class CryptoAdapter extends BaseAdapter {
     private static class ViewHolder {
         TextView cryptoName;
         TextView cryptoPrice;
+        Button favoriteButton;
     }
 
     public interface OnItemClickListener {
@@ -67,6 +70,7 @@ public class CryptoAdapter extends BaseAdapter {
             holder = new ViewHolder();
             holder.cryptoName = convertView.findViewById(R.id.crypto_name);
             holder.cryptoPrice = convertView.findViewById(R.id.crypto_price);
+            holder.favoriteButton = convertView.findViewById(R.id.favorite_button);
             convertView.setTag(holder);
         } else {
             holder = (ViewHolder) convertView.getTag();
@@ -75,8 +79,9 @@ public class CryptoAdapter extends BaseAdapter {
         String name = crypto.get("name");
         String price = crypto.get("price");
         String priceColor = crypto.get("color");
-        String cryptoId = crypto.get("market");
-
+        String market = crypto.get("market");
+        boolean isFavorite = ((MainActivity)context).isFavorite(market);
+        
         holder.cryptoName.setText(name);
         holder.cryptoPrice.setText(price);
 
@@ -88,9 +93,16 @@ public class CryptoAdapter extends BaseAdapter {
             holder.cryptoPrice.setTextColor(Color.BLACK);
         }
 
+        holder.favoriteButton.setVisibility(View.VISIBLE);
+        holder.favoriteButton.setText(isFavorite ? "★" : "☆");
+        holder.favoriteButton.setTextColor(isFavorite ? Color.YELLOW : Color.GRAY);
+        holder.favoriteButton.setOnClickListener(v -> {
+            ((MainActivity)context).toggleFavorite(market);
+        });
+        
         convertView.setOnClickListener(v -> {
             if (onItemClickListener != null) {
-                onItemClickListener.onItemClick(cryptoId);
+                onItemClickListener.onItemClick(market);
             }
         });
 

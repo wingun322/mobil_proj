@@ -35,6 +35,7 @@
             android:name=".EmailVerificationActivity"
             android:exported="false" />
         <activity android:name=".ChatActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ProfileActivity" android:exported="false" />
     </application>
 
 </manifest>

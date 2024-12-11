@@ -39,7 +39,6 @@ public class ChatActivity extends AppCompatActivity {
     private RecyclerView messageRecyclerView;
     private EditText messageInput;
     private ImageButton sendButton;
-    private ImageButton attachButton;
     private ChatAdapter chatAdapter;
     private Socket socket;
     private String username;
@@ -59,7 +58,6 @@ public class ChatActivity extends AppCompatActivity {
         messageRecyclerView = findViewById(R.id.messageRecyclerView);
         messageInput = findViewById(R.id.messageInput);
         sendButton = findViewById(R.id.sendButton);
-        attachButton = findViewById(R.id.attachButton);
 
         SharedPreferences prefs = getSharedPreferences("Auth", MODE_PRIVATE);
         String token = prefs.getString("token", "");
@@ -114,8 +112,6 @@ public class ChatActivity extends AppCompatActivity {
         }
 
         sendButton.setOnClickListener(v -> sendMessage());
-        attachButton.setOnClickListener(v -> handleAttachment());
-
         messageInput.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 sendMessage();
@@ -263,11 +259,6 @@ public class ChatActivity extends AppCompatActivity {
         } catch (JSONException e) {
             Log.e("ChatActivity", "Error creating message: " + e.getMessage());
         }
-    }
-
-    private void handleAttachment() {
-        // TODO: 파일 첨부 기능 구현
-        Toast.makeText(this, "파일 첨부 기능은 준비 중입다.", Toast.LENGTH_SHORT).show();
     }
 
     @Override
