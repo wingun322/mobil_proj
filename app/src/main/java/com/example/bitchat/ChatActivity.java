@@ -121,41 +121,81 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
 
-    private void setupSocket() {
+   private void setupSocket() {
         try {
             IO.Options opts = new IO.Options();
             opts.forceNew = true;
+            opts.reconnection = true;
+            opts.reconnectionAttempts = 10;
+            opts.reconnectionDelay = 1000;
             socket = IO.socket("http://54.206.20.147:8080", opts);
 
             socket.on(Socket.EVENT_CONNECT, args -> {
                 Log.d("ChatActivity", "Socket connected");
-                runOnUiThread(() -> {
-                    socket.emit("joinRoom", cryptoId);
-                });
+                
+                // 로그인 이벤트 발생
+                SharedPreferences prefs = getSharedPreferences("Auth", MODE_PRIVATE);
+                String userId = prefs.getString("userId", "");
+                
+                try {
+                    JSONObject loginData = new JSONObject();
+                    loginData.put("username", username);
+                    loginData.put("userId", userId);
+                    socket.emit("login", loginData);
+                    Log.d("ChatActivity", "Login event emitted");
+
+                    // 방 입장
+                    if (username != null && cryptoId != null) {
+                        socket.emit("joinRoom", cryptoId);
+                        Log.d("ChatActivity", "Joined room: " + cryptoId);
+                    }
+                } catch (JSONException e) {
+                    Log.e("ChatActivity", "Error creating login data: " + e.getMessage());
+                }
+            });
+
+            socket.on("updateUserList", args -> {
+                if (args.length > 0 && args[0] != null) {
+                    JSONArray users = (JSONArray) args[0];
+                    runOnUiThread(() -> {
+                        // TODO: 사용자 목록 UI 업데이트
+                        Log.d("ChatActivity", "User list updated: " + users.toString());
+                    });
+                }
             });
 
             socket.on("message", args -> {
-                JSONObject data = (JSONObject) args[0];
-                try {
-                    String messageUsername = data.getString("username");
-                    String messageText = data.getString("text");
-                    String messageTime = data.getString("time");
-                    
-                    // 내가 보낸 메시지는 이미 로컬에 추가되어 있으��로 다른 사람의 메시지만 추가
-                    if (!messageUsername.equals(username)) {
-                        ChatMessage message = new ChatMessage(messageUsername, messageText, messageTime);
+                if (args.length > 0 && args[0] != null) {
+                    JSONObject data = (JSONObject) args[0];
+                    try {
+                        String messageUsername = data.getString("username");
+                        String messageText = data.getString("text");
+                        String messageTime = data.getString("time");
+                        
+                        Log.d("ChatActivity", "Received message - From: " + messageUsername + ", Text: " + messageText);
+                        
                         runOnUiThread(() -> {
+                            ChatMessage message = new ChatMessage(messageUsername, messageText, messageTime);
+                            message.setIsMyMessage(messageUsername.equals(username));
                             messages.add(message);
                             chatAdapter.notifyItemInserted(messages.size() - 1);
                             messageRecyclerView.smoothScrollToPosition(messages.size() - 1);
                         });
+                    } catch (JSONException e) {
+                        Log.e("ChatActivity", "Error parsing message: " + e.getMessage());
                     }
-                } catch (JSONException e) {
-                    Log.e("ChatActivity", "Error parsing message: " + e.getMessage());
                 }
             });
 
+            socket.on("forced_logout", args -> {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "다른 기기에서 로그인되어 로그아웃됩니다.", Toast.LENGTH_LONG).show();
+                    // TODO: 로그아웃 처리
+                });
+            });
+
             socket.connect();
+            Log.d("ChatActivity", "Socket connection initiated");
 
         } catch (URISyntaxException e) {
             Log.e("ChatActivity", "Socket setup error: " + e.getMessage());
@@ -181,6 +221,7 @@ public class ChatActivity extends AppCompatActivity {
                                     messageObj.getString("text"),
                                     messageObj.getString("time")
                             );
+                            message.setIsMyMessage(messageObj.getString("username").equals(username)); // 추가
                             messages.add(message);
                             Log.d("ChatActivity", "Loaded message: " + message.getText());
                         }
@@ -241,16 +282,8 @@ public class ChatActivity extends AppCompatActivity {
             messageData.put("time", isoDate);
 
             if (socket != null && socket.connected()) {
-                Log.d("ChatActivity", "Sending message: " + messageData.toString());
                 socket.emit("message", messageData);
-                
-                // 메시지를 로컬에도 추가
-                ChatMessage message = new ChatMessage(username, text, isoDate);
-                messages.add(message);
-                chatAdapter.notifyItemInserted(messages.size() - 1);
-                messageRecyclerView.smoothScrollToPosition(messages.size() - 1);
-                
-                messageInput.setText("");  // 메시지 입력창 초기화
+                messageInput.setText(""); // 메시지 입력창 초기화
             } else {
                 Log.e("ChatActivity", "Socket is not connected");
                 Toast.makeText(this, "서버와 연결이 끊어졌습니다.", Toast.LENGTH_SHORT).show();
@@ -262,10 +295,34 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (socket != null && !socket.connected()) {
+            socket.connect();
+            Log.d("ChatActivity", "Socket reconnected in onResume");
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (socket != null && socket.connected()) {
+            socket.disconnect();
+            Log.d("ChatActivity", "Socket disconnected in onPause");
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (socket != null) {
+            socket.off("message");
+            socket.off(Socket.EVENT_CONNECT);
+            socket.off(Socket.EVENT_DISCONNECT);
+            socket.off(Socket.EVENT_CONNECT_ERROR);
             socket.disconnect();
+            socket = null;
+            Log.d("ChatActivity", "Socket cleaned up in onDestroy");
         }
     }
 }

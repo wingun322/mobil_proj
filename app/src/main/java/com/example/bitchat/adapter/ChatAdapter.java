@@ -1,5 +1,6 @@
 package com.example.bitchat.adapter;
 
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,8 +31,8 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MessageViewHol
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
         ChatMessage message = messages.get(position);
-        message.setIsMyMessage(message.getUsername().equals(currentUsername));
-
+        
+        // 메시지 타입에 따라 레이아웃 표시/숨김 처리
         if (message.isMyMessage()) {
             holder.myMessageLayout.setVisibility(View.VISIBLE);
             holder.otherMessageLayout.setVisibility(View.GONE);
@@ -44,6 +45,12 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MessageViewHol
             holder.otherMessageText.setText(message.getText());
             holder.otherTimestamp.setText(message.getTimestamp());
         }
+        
+        // 디버깅을 위한 로그
+        Log.d("ChatAdapter", String.format(
+            "Binding message at position %d - From: %s, Text: %s, IsMyMessage: %b",
+            position, message.getUsername(), message.getText(), message.isMyMessage()
+        ));
     }
 
     @Override
