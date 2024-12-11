@@ -4,13 +4,16 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.core.view.GravityCompat;
 import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -18,6 +21,7 @@ import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.bitchat.adapter.ChatAdapter;
+import com.example.bitchat.adapter.UserAdapter;
 import com.example.bitchat.model.ChatMessage;
 import io.socket.client.IO;
 import io.socket.client.Socket;
@@ -44,6 +48,10 @@ public class ChatActivity extends AppCompatActivity {
     private String username;
     private String cryptoId;
     private List<ChatMessage> messages = new ArrayList<>();
+    private DrawerLayout drawerLayout;
+    private RecyclerView userListRecyclerView;
+    private UserAdapter userAdapter;
+    private List<String> users = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +60,7 @@ public class ChatActivity extends AppCompatActivity {
 
         initViews();
         setupSocket();
+        setupUserList();
     }
 
     private void initViews() {
@@ -156,11 +165,21 @@ public class ChatActivity extends AppCompatActivity {
 
             socket.on("updateUserList", args -> {
                 if (args.length > 0 && args[0] != null) {
-                    JSONArray users = (JSONArray) args[0];
-                    runOnUiThread(() -> {
-                        // TODO: 사용자 목록 UI 업데이트
-                        Log.d("ChatActivity", "User list updated: " + users.toString());
-                    });
+                    JSONArray userArray = (JSONArray) args[0];
+                    List<String> newUsers = new ArrayList<>();
+                    try {
+                        for (int i = 0; i < userArray.length(); i++) {
+                            newUsers.add(userArray.getString(i));
+                        }
+                        runOnUiThread(() -> {
+                            users.clear();
+                            users.addAll(newUsers);
+                            userAdapter.notifyDataSetChanged();
+                            Log.d("ChatActivity", "User list updated: " + userArray.toString());
+                        });
+                    } catch (JSONException e) {
+                        Log.e("ChatActivity", "Error parsing user list: " + e.getMessage());
+                    }
                 }
             });
 
@@ -192,6 +211,19 @@ public class ChatActivity extends AppCompatActivity {
                     Toast.makeText(this, "다른 기기에서 로그인되어 로그아웃됩니다.", Toast.LENGTH_LONG).show();
                     // TODO: 로그아웃 처리
                 });
+            });
+
+            socket.on("userList", args -> {
+                JSONArray userArray = (JSONArray) args[0];
+                List<String> newUsers = new ArrayList<>();
+                for (int i = 0; i < userArray.length(); i++) {
+                    try {
+                        newUsers.add(userArray.getString(i));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+                runOnUiThread(() -> userAdapter.updateUsers(newUsers));
             });
 
             socket.connect();
@@ -324,5 +356,22 @@ public class ChatActivity extends AppCompatActivity {
             socket = null;
             Log.d("ChatActivity", "Socket cleaned up in onDestroy");
         }
+    }
+
+    private void setupUserList() {
+        drawerLayout = findViewById(R.id.drawer_layout);
+        userListRecyclerView = findViewById(R.id.userListRecyclerView);
+        userListRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        userAdapter = new UserAdapter(users);
+        userListRecyclerView.setAdapter(userAdapter);
+
+        ImageButton userListButton = findViewById(R.id.userListButton);
+        userListButton.setOnClickListener(v -> {
+            if (drawerLayout.isDrawerOpen(GravityCompat.END)) {
+                drawerLayout.closeDrawer(GravityCompat.END);
+            } else {
+                drawerLayout.openDrawer(GravityCompat.END);
+            }
+        });
     }
 }
