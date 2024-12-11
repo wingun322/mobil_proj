@@ -43,17 +43,6 @@
         android:elevation="4dp"
         android:orientation="horizontal"
         android:padding="8dp">
-
-        <!-- 첨부파일 버튼 -->
-        <ImageButton
-            android:id="@+id/attachButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:padding="12dp"
-            android:src="@drawable/ic_attach"
-            android:contentDescription="파일 첨부" />
-
         <!-- 메시지 입력창 -->
         <EditText
             android:id="@+id/messageInput"
