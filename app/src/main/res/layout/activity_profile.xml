@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="프로필"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- Username Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="유저네임"
+            android:textStyle="bold"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/username_display"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"/>
+
+            <Button
+                android:id="@+id/edit_username_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="수정"
+                style="@style/Widget.MaterialComponents.Button.TextButton"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/username_edit_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/username_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="새로운 유저네임"/>
+
+            <Button
+                android:id="@+id/update_username_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="업데이트"/>
+        </LinearLayout>
+
+        <!-- Email Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="이메일"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/email_display"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"/>
+
+            <Button
+                android:id="@+id/edit_email_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="수정"
+                style="@style/Widget.MaterialComponents.Button.TextButton"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/email_edit_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/email_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="새로운 이메일"
+                android:inputType="textEmailAddress"/>
+
+            <Button
+                android:id="@+id/update_email_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="업데이트"/>
+        </LinearLayout>
+
+        <!-- Password Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="비밀번호 변경"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"/>
+
+        <EditText
+            android:id="@+id/new_password_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="새로운 비밀번호"
+            android:inputType="textPassword"
+            android:layout_marginTop="8dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="8자 이상, 영문자, 숫자, 특수문자 포함"
+            android:textSize="12sp"/>
+
+        <EditText
+            android:id="@+id/confirm_password_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="비밀번호 확인"
+            android:inputType="textPassword"
+            android:layout_marginTop="8dp"/>
+
+        <Button
+            android:id="@+id/update_password_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="비밀번호 변경"
+            android:layout_marginTop="8dp"/>
+
+    </LinearLayout>
+</ScrollView> 

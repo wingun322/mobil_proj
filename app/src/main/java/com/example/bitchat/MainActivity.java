@@ -1,38 +1,33 @@
 package com.example.bitchat;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
+import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ImageButton;
-import androidx.drawerlayout.widget.DrawerLayout;
-import androidx.appcompat.app.ActionBarDrawerToggle;
-import androidx.core.view.GravityCompat;
-
 import androidx.appcompat.app.AppCompatActivity;
-
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.core.view.GravityCompat;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.example.bitchat.adapter.CryptoAdapter;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import android.os.Handler;
-import android.os.Looper;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -48,12 +43,54 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<HashMap<String, String>> originalData = new ArrayList<>(); // 원본 데이터 저장용
     private ImageButton profileMenuButton;
     private DrawerLayout drawerLayout;
+    private ArrayList<String> favorites = new ArrayList<>();
+    private boolean showOnlyFavorites = false;
+    private static final int SORT_NAME = 0;
+    private static final int SORT_PRICE = 1;
+    private static final int SORT_CHANGE_RATE = 2;
+    private static final int SORT_CHANGE_PRICE = 3;
+    private int currentSortMethod = SORT_NAME;
+    private boolean isAscending = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        initViews();
 
+        // 로그인 상태에 따라 UI 업데이트
+        if (isLoggedIn()) {
+            findViewById(R.id.auth_links).setVisibility(View.GONE);
+            findViewById(R.id.user_info).setVisibility(View.VISIBLE);
+            String username = getSharedPreferences("Auth", MODE_PRIVATE).getString("username", "");
+            usernameTextView.setText(username);
+            fetchFavorites();
+        } else {
+            findViewById(R.id.auth_links).setVisibility(View.VISIBLE);
+            findViewById(R.id.user_info).setVisibility(View.GONE);
+        }
+
+        setupFilterButton();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // 로그인 상태에 따라 UI 업데이트
+        if (isLoggedIn()) {
+            findViewById(R.id.auth_links).setVisibility(View.GONE);
+            findViewById(R.id.user_info).setVisibility(View.VISIBLE);
+            String username = getSharedPreferences("Auth", MODE_PRIVATE).getString("username", "");
+            usernameTextView.setText(username);
+            fetchFavorites();
+        } else {
+            findViewById(R.id.auth_links).setVisibility(View.VISIBLE);
+            findViewById(R.id.user_info).setVisibility(View.GONE);
+        }
+    }
+
+    private void initViews() {
         // Initialize UI components
         usernameTextView = findViewById(R.id.username);
         loginButton = findViewById(R.id.login_button);
@@ -76,6 +113,23 @@ public class MainActivity extends AppCompatActivity {
         adapter = new CryptoAdapter(this, new ArrayList<>());
         cryptoListView.setAdapter(adapter);
 
+        // 암호화폐 아이템 클릭 리스너 설정
+        adapter.setOnItemClickListener(cryptoId -> {
+            if (!isLoggedIn()) {
+                Toast.makeText(this, "채팅에 참여하려면 로그인이 필요합니다.", Toast.LENGTH_SHORT).show();
+                startActivity(new Intent(MainActivity.this, LoginActivity.class));
+                return;
+            }
+
+            Intent intent = new Intent(MainActivity.this, ChatActivity.class);
+            intent.putExtra("cryptoId", cryptoId);
+            startActivity(intent);
+        });
+
+        profileButton.setOnClickListener(v -> {
+            startActivity(new Intent(MainActivity.this, ProfileActivity.class));
+        });
+
         // Fetch crypto data
         startFetchingCryptoData();
 
@@ -86,7 +140,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                filterCryptoList(s.toString());
+                filterCryptoList();
             }
 
             @Override
@@ -101,6 +155,24 @@ public class MainActivity extends AppCompatActivity {
                 drawerLayout.openDrawer(GravityCompat.END);
             }
         });
+
+        loginButton.setOnClickListener(v -> {
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
+        });
+
+        signupButton.setOnClickListener(v -> {
+            startActivity(new Intent(MainActivity.this, SignupActivity.class));
+        });
+
+        // 즐겨찾기 필터 버튼 추가
+        Button filterButton = findViewById(R.id.filter_favorites);
+        filterButton.setOnClickListener(v -> {
+            showOnlyFavorites = !showOnlyFavorites;
+            filterButton.setText(showOnlyFavorites ? "전체 보기" : "즐겨찾기만");
+            filterCryptoList();
+        });
+
+        setupSortButtons();
     }
 
     @Override
@@ -127,29 +199,30 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkLoginStatus() {
-        String token = getSharedPreferences("BitChatPrefs", MODE_PRIVATE).getString("accessToken", null);
+        SharedPreferences prefs = getSharedPreferences("Auth", MODE_PRIVATE);
+        String token = prefs.getString("token", null);
 
         if (token != null) {
             String url = "http://54.206.20.147:8080/api/auth/user";
-
-            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, url, null,
-                    response -> {
-                        try {
-                            JSONObject user = response.getJSONObject("user");
-                            String username = user.getString("username");
-                            usernameTextView.setText(username);
-                            findViewById(R.id.auth_links).setVisibility(View.GONE);
-                            findViewById(R.id.user_info).setVisibility(View.VISIBLE);
-                            drawerLayout.closeDrawer(GravityCompat.END);
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-                    },
-                    error -> {
-                        Toast.makeText(this, "Failed to check login status", Toast.LENGTH_SHORT).show();
-                        findViewById(R.id.auth_links).setVisibility(View.VISIBLE);
-                        findViewById(R.id.user_info).setVisibility(View.GONE);
-                    }) {
+            JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+                response -> {
+                    try {
+                        // 서버 응답이 성공하면 로그인 상태 유지
+                        prefs.edit().putBoolean("isLoggedIn", true).apply();
+                        findViewById(R.id.auth_links).setVisibility(View.GONE);
+                        findViewById(R.id.user_info).setVisibility(View.VISIBLE);
+                        String username = response.getJSONObject("user").getString("username");
+                        usernameTextView.setText(username);
+                    } catch (JSONException e) {
+                        // 서버 응답 파싱 실패시 로그아웃 처리
+                        clearLoginState();
+                    }
+                },
+                error -> {
+                    // 서버 요청 실패시 로그아웃 처리
+                    clearLoginState();
+                }
+            ) {
                 @Override
                 public Map<String, String> getHeaders() {
                     Map<String, String> headers = new HashMap<>();
@@ -157,62 +230,65 @@ public class MainActivity extends AppCompatActivity {
                     return headers;
                 }
             };
-
-            requestQueue.add(jsonObjectRequest);
+            requestQueue.add(request);
         } else {
-            findViewById(R.id.auth_links).setVisibility(View.VISIBLE);
-            findViewById(R.id.user_info).setVisibility(View.GONE);
+            clearLoginState();
         }
+    }
+
+    private void clearLoginState() {
+        SharedPreferences prefs = getSharedPreferences("Auth", MODE_PRIVATE);
+        prefs.edit()
+            .remove("username")
+            .remove("token")
+            .remove("isLoggedIn")
+            .apply();
+        findViewById(R.id.auth_links).setVisibility(View.VISIBLE);
+        findViewById(R.id.user_info).setVisibility(View.GONE);
     }
 
     private void fetchCryptoData() {
         String url = "http://54.206.20.147:8080/api/market";
-
-        JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(Request.Method.GET, url, null,
-                response -> {
-                    ArrayList<HashMap<String, String>> cryptoData = new ArrayList<>();
-                    try {
-                        for (int i = 0; i < response.length(); i++) {
-                            JSONObject obj = response.getJSONObject(i);
-                            HashMap<String, String> map = new HashMap<>();
-                            map.put("name", obj.getString("koreanName"));
-                            map.put("price", obj.getString("tradePrice") + " KRW");
-                            map.put("color", obj.getString("priceColor"));
-                            cryptoData.add(map);
-                        }
-                        
-                        // 원본 데이터 저장
-                        originalData.clear();
-                        originalData.addAll(cryptoData);
-                        
-                        // 검색어가 있는 경우 필터링된 결과 표시
-                        String currentSearch = searchEditText.getText().toString();
-                        if (!currentSearch.isEmpty()) {
-                            filterCryptoList(currentSearch);
-                        } else {
-                            adapter.updateData(cryptoData);
-                        }
-
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+            response -> {
+                try {
+                    originalData.clear();
+                    for (int i = 0; i < response.length(); i++) {
+                        JSONObject crypto = response.getJSONObject(i);
+                        HashMap<String, String> item = new HashMap<>();
+                        item.put("name", crypto.getString("koreanName"));
+                        item.put("price", crypto.getString("tradePrice") + " KRW");
+                        item.put("color", crypto.getString("priceColor"));
+                        item.put("market", crypto.getString("market"));
+                        item.put("changePrice", crypto.getString("signedChangePrice") + " KRW");
+                        item.put("changeRate", String.format("%.2f%%", crypto.getDouble("signedChangeRate") * 100));
+                        originalData.add(item);
                     }
-                },
-                error -> Toast.makeText(this, "Failed to fetch cryptocurrency data", Toast.LENGTH_SHORT).show());
-
-        requestQueue.add(jsonArrayRequest);
+                    filterCryptoList();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            },
+            error -> Log.e("MainActivity", "Error fetching crypto data: " + error.toString())
+        );
+        requestQueue.add(request);
     }
 
-    private void filterCryptoList(String searchTerm) {
+    private void filterCryptoList() {
         ArrayList<HashMap<String, String>> filteredData = new ArrayList<>();
-        if (searchTerm.isEmpty()) {
-            filteredData.addAll(originalData);
-        } else {
-            for (HashMap<String, String> item : originalData) {
-                if (item.get("name").toLowerCase().contains(searchTerm.toLowerCase())) {
-                    filteredData.add(item);
-                }
+        String searchTerm = searchEditText.getText().toString().toLowerCase();
+
+        for (HashMap<String, String> item : originalData) {
+            boolean matchesSearch = item.get("name").toLowerCase().contains(searchTerm);
+            boolean matchesFavorite = !showOnlyFavorites || isFavorite(item.get("market"));
+            
+            if (matchesSearch && matchesFavorite) {
+                filteredData.add(item);
             }
         }
+
+        // 정렬 적용
+        sortCryptoList(filteredData);
         adapter.updateData(filteredData);
     }
 
@@ -221,13 +297,185 @@ public class MainActivity extends AppCompatActivity {
 
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, url, null,
                 response -> {
-                    getSharedPreferences("BitChatPrefs", MODE_PRIVATE).edit().remove("accessToken").apply();
-                    Toast.makeText(this, "Logged out", Toast.LENGTH_SHORT).show();
+                    // Auth SharedPreferences 사용
+                    SharedPreferences prefs = getSharedPreferences("Auth", MODE_PRIVATE);
+                    prefs.edit()
+                        .remove("username")
+                        .remove("token")
+                        .remove("isLoggedIn")
+                        .apply();
+                    
+                    Toast.makeText(this, "로그아웃되었습니다.", Toast.LENGTH_SHORT).show();
                     findViewById(R.id.auth_links).setVisibility(View.VISIBLE);
                     findViewById(R.id.user_info).setVisibility(View.GONE);
+                    
+                    // 어댑터 갱신
+                    adapter.notifyDataSetChanged();
+                    
+                    // 액티비티 재시작하여 상태 완전히 초기화
+                    Intent intent = new Intent(this, MainActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    startActivity(intent);
+                    finish();
                 },
-                error -> Toast.makeText(this, "Failed to logout", Toast.LENGTH_SHORT).show());
+                error -> Toast.makeText(this, "로그아웃 실패", Toast.LENGTH_SHORT).show());
 
         requestQueue.add(jsonObjectRequest);
+    }
+
+    private boolean isLoggedIn() {
+        SharedPreferences prefs = getSharedPreferences("Auth", MODE_PRIVATE);
+        String token = prefs.getString("token", null);
+        String username = prefs.getString("username", null);
+        boolean isLoggedIn = prefs.getBoolean("isLoggedIn", false);
+        
+        return token != null && username != null && isLoggedIn;
+    }
+
+    public void toggleFavorite(String market) {
+        String token = getSharedPreferences("Auth", MODE_PRIVATE).getString("token", "");
+        if (token.isEmpty()) {
+            Toast.makeText(this, "로그인이 필요한 서비스입니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String url = "http://54.206.20.147:8080/api/auth/favorites/" + 
+            (isFavorite(market) ? "remove" : "add");
+
+        JSONObject jsonBody = new JSONObject();
+        try {
+            jsonBody.put("cryptoId", market);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, jsonBody,
+            response -> {
+                try {
+                    String message = response.getString("message");
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                    fetchFavorites();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            },
+            error -> Toast.makeText(this, "즐겨찾기 처리 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
+        ) {
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
+
+        requestQueue.add(request);
+    }
+
+    private void fetchFavorites() {
+        String token = getSharedPreferences("Auth", MODE_PRIVATE).getString("token", "");
+        if (token.isEmpty()) return;
+
+        String url = "http://54.206.20.147:8080/api/auth/favorites";
+
+        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+            response -> {
+                favorites.clear();
+                for (int i = 0; i < response.length(); i++) {
+                    try {
+                        favorites.add(response.getString(i));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+                adapter.notifyDataSetChanged();
+            },
+            error -> Log.e("MainActivity", "Error fetching favorites: " + error.toString())
+        ) {
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
+
+        requestQueue.add(request);
+    }
+
+    public boolean isFavorite(String market) {
+        return favorites.contains(market);
+    }
+
+    private void setupFilterButton() {
+        Button filterButton = findViewById(R.id.filter_favorites);
+        filterButton.setOnClickListener(v -> {
+            showOnlyFavorites = !showOnlyFavorites;
+            filterButton.setText(showOnlyFavorites ? "전체 보기" : "즐겨찾기만");
+            filterCryptoList();
+        });
+    }
+
+    private void setupSortButtons() {
+        Button sortNameBtn = findViewById(R.id.sort_name);
+        Button sortPriceBtn = findViewById(R.id.sort_price);
+        Button sortChangeRateBtn = findViewById(R.id.sort_change_rate);
+        Button sortChangePriceBtn = findViewById(R.id.sort_change_price);
+
+        View.OnClickListener sortClickListener = v -> {
+            int previousSort = currentSortMethod;
+            
+            if (v.getId() == R.id.sort_name) {
+                currentSortMethod = SORT_NAME;
+            } else if (v.getId() == R.id.sort_price) {
+                currentSortMethod = SORT_PRICE;
+            } else if (v.getId() == R.id.sort_change_rate) {
+                currentSortMethod = SORT_CHANGE_RATE;
+            } else if (v.getId() == R.id.sort_change_price) {
+                currentSortMethod = SORT_CHANGE_PRICE;
+            }
+
+            // 같은 버튼을 두 번 클릭하면 정렬 방향을 변경
+            if (previousSort == currentSortMethod) {
+                isAscending = !isAscending;
+            } else {
+                isAscending = true;
+            }
+
+            filterCryptoList();
+        };
+
+        sortNameBtn.setOnClickListener(sortClickListener);
+        sortPriceBtn.setOnClickListener(sortClickListener);
+        sortChangeRateBtn.setOnClickListener(sortClickListener);
+        sortChangePriceBtn.setOnClickListener(sortClickListener);
+    }
+
+    private void sortCryptoList(ArrayList<HashMap<String, String>> list) {
+        list.sort((item1, item2) -> {
+            int result = 0;
+            switch (currentSortMethod) {
+                case SORT_NAME:
+                    result = item1.get("name").compareTo(item2.get("name"));
+                    break;
+                case SORT_PRICE:
+                    double price1 = Double.parseDouble(item1.get("price").replace(" KRW", "").replace(",", ""));
+                    double price2 = Double.parseDouble(item2.get("price").replace(" KRW", "").replace(",", ""));
+                    result = Double.compare(price1, price2);
+                    break;
+                case SORT_CHANGE_RATE:
+                    double rate1 = Double.parseDouble(item1.get("changeRate").replace("%", ""));
+                    double rate2 = Double.parseDouble(item2.get("changeRate").replace("%", ""));
+                    result = Double.compare(rate1, rate2);
+                    break;
+                case SORT_CHANGE_PRICE:
+                    double changePrice1 = Double.parseDouble(item1.get("changePrice").replace(" KRW", "").replace(",", ""));
+                    double changePrice2 = Double.parseDouble(item2.get("changePrice").replace(" KRW", "").replace(",", ""));
+                    result = Double.compare(changePrice1, changePrice2);
+                    break;
+            }
+            return isAscending ? result : -result;
+        });
     }
 }
