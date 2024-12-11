@@ -45,6 +45,12 @@ public class MainActivity extends AppCompatActivity {
     private DrawerLayout drawerLayout;
     private ArrayList<String> favorites = new ArrayList<>();
     private boolean showOnlyFavorites = false;
+    private static final int SORT_NAME = 0;
+    private static final int SORT_PRICE = 1;
+    private static final int SORT_CHANGE_RATE = 2;
+    private static final int SORT_CHANGE_PRICE = 3;
+    private int currentSortMethod = SORT_NAME;
+    private boolean isAscending = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -165,6 +171,8 @@ public class MainActivity extends AppCompatActivity {
             filterButton.setText(showOnlyFavorites ? "전체 보기" : "즐겨찾기만");
             filterCryptoList();
         });
+
+        setupSortButtons();
     }
 
     @Override
@@ -252,9 +260,10 @@ public class MainActivity extends AppCompatActivity {
                         item.put("price", crypto.getString("tradePrice") + " KRW");
                         item.put("color", crypto.getString("priceColor"));
                         item.put("market", crypto.getString("market"));
+                        item.put("changePrice", crypto.getString("signedChangePrice") + " KRW");
+                        item.put("changeRate", String.format("%.2f%%", crypto.getDouble("signedChangeRate") * 100));
                         originalData.add(item);
                     }
-                    // 현재 필터 상태에 따라 데이터 업데이트
                     filterCryptoList();
                 } catch (JSONException e) {
                     e.printStackTrace();
@@ -277,6 +286,9 @@ public class MainActivity extends AppCompatActivity {
                 filteredData.add(item);
             }
         }
+
+        // 정렬 적용
+        sortCryptoList(filteredData);
         adapter.updateData(filteredData);
     }
 
@@ -402,6 +414,68 @@ public class MainActivity extends AppCompatActivity {
             showOnlyFavorites = !showOnlyFavorites;
             filterButton.setText(showOnlyFavorites ? "전체 보기" : "즐겨찾기만");
             filterCryptoList();
+        });
+    }
+
+    private void setupSortButtons() {
+        Button sortNameBtn = findViewById(R.id.sort_name);
+        Button sortPriceBtn = findViewById(R.id.sort_price);
+        Button sortChangeRateBtn = findViewById(R.id.sort_change_rate);
+        Button sortChangePriceBtn = findViewById(R.id.sort_change_price);
+
+        View.OnClickListener sortClickListener = v -> {
+            int previousSort = currentSortMethod;
+            
+            if (v.getId() == R.id.sort_name) {
+                currentSortMethod = SORT_NAME;
+            } else if (v.getId() == R.id.sort_price) {
+                currentSortMethod = SORT_PRICE;
+            } else if (v.getId() == R.id.sort_change_rate) {
+                currentSortMethod = SORT_CHANGE_RATE;
+            } else if (v.getId() == R.id.sort_change_price) {
+                currentSortMethod = SORT_CHANGE_PRICE;
+            }
+
+            // 같은 버튼을 두 번 클릭하면 정렬 방향을 변경
+            if (previousSort == currentSortMethod) {
+                isAscending = !isAscending;
+            } else {
+                isAscending = true;
+            }
+
+            filterCryptoList();
+        };
+
+        sortNameBtn.setOnClickListener(sortClickListener);
+        sortPriceBtn.setOnClickListener(sortClickListener);
+        sortChangeRateBtn.setOnClickListener(sortClickListener);
+        sortChangePriceBtn.setOnClickListener(sortClickListener);
+    }
+
+    private void sortCryptoList(ArrayList<HashMap<String, String>> list) {
+        list.sort((item1, item2) -> {
+            int result = 0;
+            switch (currentSortMethod) {
+                case SORT_NAME:
+                    result = item1.get("name").compareTo(item2.get("name"));
+                    break;
+                case SORT_PRICE:
+                    double price1 = Double.parseDouble(item1.get("price").replace(" KRW", "").replace(",", ""));
+                    double price2 = Double.parseDouble(item2.get("price").replace(" KRW", "").replace(",", ""));
+                    result = Double.compare(price1, price2);
+                    break;
+                case SORT_CHANGE_RATE:
+                    double rate1 = Double.parseDouble(item1.get("changeRate").replace("%", ""));
+                    double rate2 = Double.parseDouble(item2.get("changeRate").replace("%", ""));
+                    result = Double.compare(rate1, rate2);
+                    break;
+                case SORT_CHANGE_PRICE:
+                    double changePrice1 = Double.parseDouble(item1.get("changePrice").replace(" KRW", "").replace(",", ""));
+                    double changePrice2 = Double.parseDouble(item2.get("changePrice").replace(" KRW", "").replace(",", ""));
+                    result = Double.compare(changePrice1, changePrice2);
+                    break;
+            }
+            return isAscending ? result : -result;
         });
     }
 }
